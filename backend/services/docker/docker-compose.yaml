@@ -1,0 +1,26 @@
+services: 
+  product-service:
+    build:
+      context: ../product
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8002:8000"
+    environment:
+      - SERVICE_PORT=8000
+      - SERVICE_NAME=products
+  
+  auth-service:
+    build:
+      context: ../auth
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8003:8000"
+    environment:
+      - SERVICE_PORT=8000
+      - SERVICE_NAME=auth
+
+networks:
+    app_network:
+        external: true
