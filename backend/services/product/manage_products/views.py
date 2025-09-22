@@ -1,4 +1,4 @@
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, filters
 from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment
 from .serializers import ProductSerializer, CategorySerializer, CartSerializer, CartItemSerializer, OrderSerializer, OrderItemSerializer, PaymentSerializer
 
@@ -15,54 +15,58 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 class ProductViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing products.
+    Provides CRUD operations with custom filtering and permissions.
+    """
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
     
-    def get_queryset(self):
-        return Product.objects.select_related('category').all()
+    # Search and ordering configuration
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'description', 'category__name']
+    ordering_fields = ['price', 'created_at']
+    ordering = ['name']
 
     @extend_schema(
         parameters=[
             OpenApiParameter(
                 name='category',
                 type=OpenApiTypes.INT,
-                description='Filter products by category ID',
-                examples=[
-                    OpenApiExample('Category 1', value=1),
-                    OpenApiExample('Category 2', value=2),
-                ]
+                description='Filter products by category ID'
             ),
             OpenApiParameter(
                 name='is_published',
                 type=OpenApiTypes.BOOL,
-                description='Filter products by published status',
-                examples=[
-                    OpenApiExample('Published', value=True),
-                    OpenApiExample('Unpublished', value=False),
-                ]
+                description='Filter products by published status'
             ),
         ]
     )
+    def get_queryset(self):
+        """
+        Get the list of products with optional filtering.
+        """
+        queryset = Product.objects.select_related('category')
+        
+        # Apply filters from query parameters
+        category_id = self.request.query_params.get('category')
+        is_published = self.request.query_params.get('is_published')
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+            
+        if is_published:
+            is_published_bool = is_published.lower() in ['true', '1']
+            queryset = queryset.filter(is_published=is_published_bool)
+            
+        return queryset
 
     def get_permissions(self):
-        if self.action == 'list':
+        """
+        Define permission classes based on the action.
+        List and retrieve are public, other actions require authentication.
+        """
+        if self.action in ['list', 'retrieve']:
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
-    
-    def list(self, request, *args, **kwargs):
-        category_id = request.query_params.get('category')
-        is_published = request.query_params.get('is_published')
-
-        queryset = self.get_queryset()
-        if category_id is not None:
-            queryset = queryset.filter(category_id=category_id)
-        if is_published is not None:
-            if is_published.lower() in ['true', '1']:
-                queryset = queryset.filter(is_published=True)
-            elif is_published.lower() in ['false', '0']:
-                queryset = queryset.filter(is_published=False)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)

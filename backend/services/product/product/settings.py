@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'manage_products',
     'corsheaders',
-
+    'django_filters'
 ]
 
 MIDDLEWARE = [
@@ -117,9 +117,14 @@ REST_FRAMEWORK = {
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ]
 }
 
 SPECTACULAR_SETTINGS = {
@@ -129,6 +134,7 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
+CORS_ALLOW_ALL_ORIGINS = True
 # RABBITMQ_URL = f"amqp://{config('RABBITMQ_USER')}:{config('RABBITMQ_PASS')}@{config('RABBITMQ_HOST')}:5672/"
 
 # TENANT_MODEL = 'tenant.Tenant'  # optionnel, selon implémentation
