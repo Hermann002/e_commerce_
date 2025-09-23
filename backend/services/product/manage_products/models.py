@@ -22,10 +22,12 @@ class LocalTenant(models.Model):
         verbose_name_plural = "Local Tenants"
 
 class Category(models.Model):
+    category_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     tenant = models.ForeignKey(LocalTenant, on_delete=models.CASCADE, related_name='categories')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subcategories')
     slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,11 +77,11 @@ class Cart(models.Model):
     
     class Meta:
         db_table = 'cart'
-        unique_together = ('user_id', 'tenant')
+        unique_together = ('user', 'tenant')
     
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, to_field='product_id')  # Explicitly reference the UUID field
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     added_at = models.DateTimeField(auto_now_add=True)
@@ -93,7 +95,7 @@ class CartItem(models.Model):
 
     class Meta:
         db_table = 'cart_item'
-        unique_together = ('cart', 'product_id')
+        unique_together = ('cart', 'product')
 
 class Order(models.Model):
     order_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -114,7 +116,7 @@ class Order(models.Model):
     class Meta:
         db_table = 'order'
         indexes = [
-            models.Index(fields=['user_id', 'created_at']),
+            models.Index(fields=['user', 'created_at']),
             models.Index(fields=['status']),
         ]
     

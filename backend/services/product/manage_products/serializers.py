@@ -43,13 +43,13 @@ class ProductSerializer(serializers.ModelSerializer):
             'stock',
             'image_url',
             'is_published',
-            'category_id',
+            'category',
             'category_name',
             'created_at',
             'updated_at'
         ]
         extra_kwargs = {
-            'category_id': {'write_only': True},
+            'category': {'write_only': True},
             'price': {'min_value': 0},
             'stock': {'min_value': 0}
         }
@@ -68,7 +68,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = [
             'product_id',
             'quantity',
-            'unit_price',
+            'price',
             'total_price'
         ]
 
@@ -99,6 +99,7 @@ class CartSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
+    product_name = serializers.CharField(source='product.name', read_only=True)
 
     class Meta:
         model = OrderItem
@@ -106,7 +107,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'product_id',
             'product_name',
             'quantity',
-            'unit_price',
+            'price',
             'total_price'
         ]
 

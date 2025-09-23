@@ -24,8 +24,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['tenant']
-    lookup_field = 'category_id'
+    lookup_field = 'category'
 
+@extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='X-Tenant-ID',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description='ID unique du tenant (boutique). Ex: a1b2c3d4-e5f6-7890-1234-567890abcdef'
+            ),
+        ]
+    )
 class ProductViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing products.
@@ -35,8 +46,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     # Search and ordering configuration
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_published', 'category_id']
-    search_fields = ['name', 'description', 'category__name']
+    filterset_fields = ['is_published', 'category']
+    search_fields = ['name', 'description', 'category_name']
     ordering_fields = ['price', 'created_at']
     ordering = ['name']
     lookup_field = 'product_id'
@@ -132,7 +143,7 @@ class CartViewSet(viewsets.ViewSet):
         item, created = CartItem.objects.get_or_create(
             cart=cart,
             product_id=product_id,
-            defaults={'quantity': quantity, 'unit_price': 0}  # prix mis à jour plus tard
+            defaults={'quantity': quantity, 'price': 0}  # prix mis à jour plus tard
         )
         if not created:
             item.quantity += quantity

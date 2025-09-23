@@ -54,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'product_service.middleware.TenantMiddleware',
+    'manage_products.middleware.TenantMiddleware',
 ]
 
 ROOT_URLCONF = 'product.urls'
@@ -127,15 +127,39 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'product_service.pagination.StandardResultsSetPagination',
+    'DEFAULT_PAGINATION_CLASS': 'manage_products.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 20,
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'NextGen Shop API',
-    'DESCRIPTION': 'API for e-commerce platform with multi-tenancy',
+    'TITLE': 'NextGen Shop - Product Service API',
+    'DESCRIPTION': 'API pour la gestion des produits, paniers, commandes',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+    },
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SORT_OPERATIONS': False,
+    'TAGS': [
+        {'name': 'Products', 'description': 'Gestion des produits'},
+        {'name': 'Categories', 'description': 'Catégories de produits'},
+        {'name': 'Cart', 'description': 'Panier utilisateur'},
+        {'name': 'Orders', 'description': 'Commandes'},
+        {'name': 'Payments', 'description': 'Paiements'},
+    ],
+
+    # Ajoute le header X-Tenant-ID globalement
+    'PREPROCESSING_HOOKS': ['drf_spectacular.hooks.preprocess_exclude_path_format'],
+    'POSTPROCESSING_HOOKS': [],
+
+    # Ajouter des paramètres globaux
+    'EXTENSIONS_INFO': {
+        'x-tagGroups': [
+            {'name': 'Tenant Context', 'tags': ['Headers']}
+        ]
+    },
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -160,6 +184,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+AUTH_USER_MODEL = 'auth.User' 
 
 
 # Internationalization
