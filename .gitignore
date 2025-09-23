@@ -4,3 +4,13 @@ sprints.md
 env/
 migrations/
 __pycache__/
+db.sqlite3
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+*.pot
+*.mo
+*.swp
