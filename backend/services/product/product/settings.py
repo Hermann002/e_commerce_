@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from decouple import config
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +43,8 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'manage_products',
     'corsheaders',
-    'django_filters'
+    'django_filters',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -54,7 +56,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'manage_products.middleware.TenantMiddleware',
 ]
 
 ROOT_URLCONF = 'product.urls'
@@ -115,8 +116,8 @@ WSGI_APPLICATION = 'product.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -130,6 +131,21 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'manage_products.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 20,
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=2),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
+
+    "ALGORITHM": "HS256",
+
+    'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', 'ma_cle_secrete_très_longue_et_difficile_à_deviner_12345'),
+    'VERIFYING_KEY': os.getenv('JWT_SECRET_KEY', 'ma_cle_secrete_très_longue_et_difficile_à_deviner_12345'),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'NextGen Shop - Product Service API',
@@ -150,22 +166,11 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Payments', 'description': 'Paiements'},
     ],
 
-    # Ajoute le header X-Tenant-ID globalement
-    'PREPROCESSING_HOOKS': ['drf_spectacular.hooks.preprocess_exclude_path_format'],
-    'POSTPROCESSING_HOOKS': [],
-
-    # Ajouter des paramètres globaux
-    'EXTENSIONS_INFO': {
-        'x-tagGroups': [
-            {'name': 'Tenant Context', 'tags': ['Headers']}
-        ]
-    },
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
 # RABBITMQ_URL = f"amqp://{config('RABBITMQ_USER')}:{config('RABBITMQ_PASS')}@{config('RABBITMQ_HOST')}:5672/"
 
-# TENANT_MODEL = 'tenant.Tenant'  # optionnel, selon implémentation
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

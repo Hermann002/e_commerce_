@@ -2,15 +2,81 @@
 import uuid
 import logging
 from datetime import timedelta
-from typing import Optional, Dict, Any
-
+from typing import Optional, Dict, Any, TypedDict
+from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .models import User, Tenant, Role, UserRole, Plan, Subscription
 from .services import IUserRoleService, UserRoleServiceImpl
 
+from django.utils.translation import gettext as _
+from datetime import timedelta, datetime
+
 logger = logging.getLogger(__name__)
+
+class UserData(TypedDict):
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    is_active: bool
+    is_verified: bool
+
+def get_user_by_id(user_id: str) -> Optional[UserData]:
+    """Interface pour récupérer un utilisateur"""
+    User = apps.get_model('manage_users', 'User')
+    try:
+        user = User.objects.get(id=user_id)
+        return UserData(
+            user_id=str(user.id),
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_active=user.is_active,
+            is_verified=user.is_verified
+        )
+    except User.DoesNotExist:
+        return None
+
+def create_user_record(user_data: Dict[str, Any]) -> UserData:
+    """Interface pour créer un utilisateur"""
+    User = apps.get_model('manage_users', 'User')
+    user = User.objects.create_user(**user_data)
+    print("user create")
+    return UserData(
+        user_id=str(user.id),
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        is_active=user.is_active,
+        is_verified=user.is_verified
+    )
+
+def get_or_create_free_plan():
+    """Interface pour obtenir ou créer le plan gratuit"""
+    Plan = apps.get_model('manage_users', 'Plan')
+    try:
+        plan = Plan.objects.get(name="Free")
+    except Plan.DoesNotExist:
+        plan = Plan.objects.create(
+            name="Free",
+            price=0,
+            duration_days=365,
+            max_products=50,
+            features=["basic_catalog", "5gb_storage"]
+        )
+    return plan
+
+def create_subscription(plan_id: str):
+    """Interface pour créer un abonnement"""
+    Subscription = apps.get_model('manage_users', 'Subscription')
+    Plan = apps.get_model('manage_users', 'Plan')
+    plan = Plan.objects.get(id=plan_id)
+
+    return Subscription.objects.create(
+        plan=plan,
+        status="Active"
+    )
 
 class UserManager:
     """
@@ -20,160 +86,90 @@ class UserManager:
 
     def __init__(self, role_service: IUserRoleService = None):
         self.role_service = role_service or UserRoleServiceImpl()
+    
+    def create_user(self, email, first_name, last_name, password, **kwargs):
+        if email:
+            email = self.normalize_email(email)
+            self.email_validator(email)
+        else:
+            raise ValueError(_("an email address is required"))
+        
+        if not first_name:
+            raise ValueError(_("first name is required"))
+        
+        if not last_name:
+            raise ValueError(_("last name is required"))
+        
+        user = self.model(email=email, first_name=first_name, last_name=last_name, **kwargs)
+        user.set_password(password)
+        user.save(using=self._db)
+        
+        return user
 
     @transaction.atomic
     def register_user(
-        self,
-        email: str,
-        password: str,
-        first_name: str,
-        last_name: str,
-        is_shop_owner: bool = False,
-        shop_name: Optional[str] = None,
-        shop_slug: Optional[str] = None
-    ) -> Dict[str, Any]:
+            self,
+            email: str,
+            password: str,
+            first_name: str,
+            last_name: str
+        ) -> Dict[str, Any]:
         """
-        Inscrit un utilisateur. Peut créer une boutique si is_shop_owner=True.
+        Inscrit un utilisateur sans créer de boutique.
 
-        :param email: Email de l'utilisateur
-        :param password: Mot de passe
-        :param first_name: Prénom
-        :param last_name: Nom
-        :param is_shop_owner: Si True, crée une boutique
-        :param shop_name: Nom de la boutique (obligatoire si is_shop_owner)
-        :param shop_slug: Sous-domaine (ex: ma-boutique)
-        :return: Dictionnaire avec user, tenant (optionnel), roles
+        :return: Dictionnaire contenant l'utilisateur et ses rôles
         """
         try:
-            # 1. Valider les entrées
-            if not email or not password or not first_name or not last_name:
-                raise ValidationError("Champs requis manquants.")
+            # Validation
+            if not all([email, password, first_name, last_name]):
+                raise ValidationError("Les champs email, mot de passe, prénom et nom sont obligatoires.")
 
-            if is_shop_owner and (not shop_name or not shop_slug):
-                raise ValidationError("Nom et slug de boutique requis pour shop_owner.")
-
-            if is_shop_owner and Tenant.objects.filter(slug=shop_slug).exists():
-                raise ValidationError(f"Le sous-domaine '{shop_slug}' est déjà pris.")
-
-            # 2. Créer l'utilisateur
-            user = User.objects.create_user(
-                user_id=uuid.uuid4(),
-                username=email,
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                is_verified=False  # À activer plus tard
-            )
-            logger.info(f"Utilisateur créé : {user.email}")
-
-            # 3. Attribuer rôle de base
-            if not self.role_service.assign_role(user.user_id, "customer"):
-                raise Exception("Échec attribution rôle 'customer'")
-
-            result = {
-                "user": user,
-                "tenant": None,
-                "roles": self.role_service.get_user_roles(str(user.user_id))
+            # Créer l'utilisateur via le service métier
+            user_data = {
+                'id': uuid.uuid4(),
+                'email': email,
+                'password': password,
+                'first_name': first_name,
+                'last_name': last_name,
+                'is_verified': False
             }
+            print(user_data)
+            try:
+                user = create_user_record(user_data)
+                logger.info(f"Utilisateur inscrit : {user['email']}")
+            except Exception as e: 
+                logger.error(f"Erreur création utilisateur : {e}")
+                raise ValidationError(f"Erreur lors de la création de l'utilisateur : {e}")
 
-            # 4. Si shop_owner, créer boutique + abonnement + rôle
-            if is_shop_owner:
-                tenant = self._create_tenant_for_owner(user, shop_name, shop_slug)
-                result["tenant"] = tenant
+            # Attribuer le rôle de base
+            if not self.role_service.assign_role(str(user['user_id']), "customer"):
+                raise Exception("Échec d'attribution du rôle 'customer'")
 
-                # Mettre à jour les rôles
-                result["roles"] = self.role_service.get_user_roles(str(user.user_id))
-
-            return result
+            return {
+                "user": user,
+                "roles": self.role_service.get_user_roles(str(user['user_id']))
+            }
 
         except Exception as e:
             logger.error(f"Erreur lors de l'inscription : {e}")
             raise ValidationError(f"Échec de l'inscription : {str(e)}")
-
-    @transaction.atomic
-    def _create_tenant_for_owner(self, user: User, name: str, slug: str) -> Tenant:
-        """
-        Crée une boutique pour un propriétaire.
-        Attribue le rôle shop_owner, crée un abonnement gratuit.
-        """
-        # Créer le tenant
-        tenant = Tenant.objects.create(
-            tenant_id=uuid.uuid4(),
-            name=name,
-            slug=slug,
-            owner=user
-        )
-        logger.info(f"Boutique créée : {tenant.name} ({tenant.slug})")
-
-        # Attribuer rôle shop_owner
-        if not self.role_service.assign_role(
-            user_id=str(user.user_id),
-            role_name="shop_owner",
-            tenant_id=str(tenant.tenant_id),
-            assigned_by_id=str(user.user_id)  # auto-attribution
-        ):
-            raise Exception("Impossible d'attribuer le rôle shop_owner")
-
-        # Associer un plan gratuit
-        try:
-            free_plan = Plan.objects.get(name="Free")
-        except Plan.DoesNotExist:
-            free_plan = Plan.objects.create(
-                name="Free",
-                price=0,
-                duration_days=365,
-                max_products=50,
-                features=["basic_catalog", "5gb_storage"]
-            )
-
-        Subscription.objects.create(
-            tenant=tenant,
-            plan=free_plan,
-            status="Active"
-        )
-        logger.info(f"Abonnement gratuit attribué à {tenant}")
-
-        return tenant
-
-    def promote_to_shop_owner(
-        self,
-        user_id: str,
-        shop_name: str,
-        shop_slug: str
-    ) -> Tenant:
-        """
-        Permet à un utilisateur existant de créer une boutique.
-        """
-        try:
-            user = User.objects.get(user_id=user_id)
-            return self._create_tenant_for_owner(user, shop_name, shop_slug)
-        except User.DoesNotExist:
-            raise ValidationError("Utilisateur introuvable.")
-        except Exception as e:
-            logger.error(f"Échec promotion en shop_owner : {e}")
-            raise
-
+        
     def deactivate_user(self, user_id: str):
-        """
-        Désactive un utilisateur (soft delete logique)
-        """
-        try:
-            user = User.objects.get(user_id=user_id)
-            user.is_active = False
-            user.save()
+        user = get_user_by_id(user_id)
+        if user:
+            user['is_active'] = False
+            create_user_record(user)
             logger.info(f"Utilisateur désactivé : {user_id}")
-        except User.DoesNotExist:
-            pass
 
-    def change_password(self, user_id: str, new_password: str):
-        """
-        Change le mot de passe d'un utilisateur
-        """
+    def authenticate(self, email: str, password: str) -> Optional[UserData]:
+        User = apps.get_model('manage_users', 'User')
         try:
-            user = User.objects.get(user_id=user_id)
-            user.set_password(new_password)
-            user.save()
-            logger.info(f"Mot de passe changé pour : {user_id}")
+            user = User.objects.get(email=email)
+            if user.check_password(password):
+                return user
+            return None
         except User.DoesNotExist:
-            raise ValidationError("Utilisateur introuvable.")
+            return None
+        except Exception as e:
+            logger.error(f"Erreur d'authentification : {e}")
+            return None

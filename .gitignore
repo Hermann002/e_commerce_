@@ -1,6 +1,7 @@
 documentation.md
 mvp.md
 sprints.md
+examples/
 env/
 migrations/
 __pycache__/

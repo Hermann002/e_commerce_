@@ -4,7 +4,7 @@ python manage.py collectstatic --noinput
 
 python manage.py makemigrations manage_products
 
-python manage.py migrate
+python manage.py migrate manage_products
 
 python manage.py test
 

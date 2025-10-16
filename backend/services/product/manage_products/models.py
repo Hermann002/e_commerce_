@@ -4,27 +4,9 @@ from .enums import OrderStatus, PaymentMethod, PaymentStatus
 
 import uuid
 
-
-class LocalTenant(models.Model):
-    tenant_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, help_text="Nom de la boutique")
-    owner_id = models.UUIDField(help_text="ID du propriétaire (copié depuis auth-service)")
-    is_active = models.BooleanField(default=True, help_text="Actif ou désactivé")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"[{self.tenant_id}] {self.name}"
-
-    class Meta:
-        db_table = 'local_tenant'
-        verbose_name = "Local Tenant"
-        verbose_name_plural = "Local Tenants"
-
 class Category(models.Model):
     category_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    tenant = models.ForeignKey(LocalTenant, on_delete=models.CASCADE, related_name='categories')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subcategories')
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
@@ -36,14 +18,12 @@ class Category(models.Model):
     
     class Meta:
         db_table = 'category'
-        unique_together = ('slug', 'tenant')
 
 class Product(models.Model):
     product_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    tenant = models.ForeignKey(LocalTenant, on_delete=models.CASCADE, related_name='products')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     image_url = models.CharField(max_length=255)
     is_published = models.BooleanField()
@@ -59,15 +39,15 @@ class Product(models.Model):
     class Meta:
         db_table = 'product'
         indexes = [
-            models.Index(fields=['tenant', 'is_published']),
+            models.Index(fields=['is_published']),
             models.Index(fields=['category']),
         ]
-    
+        ordering = ['-created_at']
+
     
 class Cart(models.Model):
     cart_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.UUIDField(null=True, blank=True, help_text="Null si anonyme")
-    tenant = models.ForeignKey(LocalTenant, on_delete=models.CASCADE)
     session_id = models.CharField(max_length=255, null=True, blank=True, help_text="Pour les utilisateurs anonymes")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -77,7 +57,6 @@ class Cart(models.Model):
     
     class Meta:
         db_table = 'cart'
-        unique_together = ('user', 'tenant')
     
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
@@ -100,7 +79,6 @@ class CartItem(models.Model):
 class Order(models.Model):
     order_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.UUIDField(null=True, blank=True, help_text="Null si anonyme")
-    tenant = models.ForeignKey(LocalTenant, on_delete=models.CASCADE)
     cart = models.OneToOneField(Cart, on_delete=models.SET_NULL, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)

@@ -1,6 +1,6 @@
 from rest_framework import generics, viewsets, filters, status
-from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment, LocalTenant
-from .serializers import LocalTenantSerializer, ProductSerializer, CategorySerializer, CartSerializer, CartItemSerializer, OrderSerializer, OrderItemSerializer, PaymentSerializer
+from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment
+from .serializers import ProductSerializer, CategorySerializer, CartSerializer, CartItemSerializer, OrderSerializer, OrderItemSerializer, PaymentSerializer
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -13,30 +13,15 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 
 
-class LocalTenantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = LocalTenant.objects.all()
-    serializer_class = LocalTenantSerializer
-
 @extend_schema(tags=['Categories'])
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['tenant']
     lookup_field = 'category'
 
-@extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name='X-Tenant-ID',
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.HEADER,
-                required=True,
-                description='ID unique du tenant (boutique). Ex: a1b2c3d4-e5f6-7890-1234-567890abcdef'
-            ),
-        ]
-    )
+
 class ProductViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing products.
@@ -56,7 +41,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         parameters=[
             OpenApiParameter(
                 name='category',
-                type=OpenApiTypes.INT,
+                type=OpenApiTypes.UUID,
                 description='Filter products by category ID'
             ),
             OpenApiParameter(
@@ -71,8 +56,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         Get the list of products with optional filtering.
         """
+        print("first")
         queryset = Product.objects.select_related('category')
-        tenant = self.request.tenant
         
         # Apply filters from query parameters
         category_id = self.request.query_params.get('category')
@@ -84,10 +69,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         if is_published:
             is_published_bool = is_published.lower() in ['true', '1']
             queryset = queryset.filter(is_published=is_published_bool)
-        
-        if not tenant:
-            return Product.objects.none()
-        return queryset.filter(tenant=tenant)
+
+        return queryset
 
     def get_permissions(self):
         """
@@ -99,9 +82,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
-    
-    def perform_create(self, serializer):
-        serializer.save(tenant=self.request.tenant)
 
 
 @extend_schema(tags=['Cart'])
@@ -110,28 +90,24 @@ class CartViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """Récupère le panier de l'utilisateur ou de la session"""
-        tenant = request.tenant
         user_id = request.user_id  # extrait du JWT
         session_key = request.session.session_key
 
         cart, created = Cart.objects.get_or_create(
             user_id=user_id,
             session_key=session_key,
-            tenant=tenant
         )
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
     def add_item(self, request):
-        tenant = request.tenant
         user_id = request.user_id
         session_key = request.session.session_key
 
         cart, _ = Cart.objects.get_or_create(
             user_id=user_id,
             session_key=session_key,
-            tenant=tenant
         )
 
         product_id = request.data.get('product_id')
@@ -167,18 +143,13 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user_id = self.request.user_id
-        tenant = self.request.tenant
-        return Order.objects.filter(user_id=user_id, tenant=tenant)
+        return Order.objects.filter(user_id=user_id)
 
     def perform_create(self, serializer):
-        serializer.save(user_id=self.request.user_id, tenant=self.request.tenant)
+        serializer.save(user_id=self.request.user_id)
 
 @extend_schema(tags=['Payments'])
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
     lookup_field = 'payment_id'
-
-    def get_queryset(self):
-        tenant = self.request.tenant
-        return Payment.objects.filter(order__tenant=tenant)

@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import CategoryViewSet, ProductViewSet, CartViewSet, PaymentViewSet, OrderViewSet, LocalTenantViewSet
+from .views import CategoryViewSet, ProductViewSet, CartViewSet, PaymentViewSet, OrderViewSet
 from rest_framework.routers import DefaultRouter
 from rest_framework.urlpatterns import format_suffix_patterns
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView

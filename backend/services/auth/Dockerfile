@@ -1,4 +1,4 @@
-FROM base AS web
+FROM services-base AS web
 
 WORKDIR /app
 

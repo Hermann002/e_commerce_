@@ -1,18 +1,6 @@
-from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment, LocalTenant
+from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment
 from rest_framework import serializers
 
-class LocalTenantSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LocalTenant
-        fields = [
-            'tenant_id',
-            'name',
-            'owner_id',
-            'is_active',
-            'created_at',
-            'updated_at'
-        ]
-        read_only_fields = ['tenant_id', 'owner_id', 'created_at', 'updated_at']
 
 class CategorySerializer(serializers.ModelSerializer):
     parent_id = serializers.UUIDField(source='parent.category_id', read_only=True, allow_null=True)
@@ -54,11 +42,6 @@ class ProductSerializer(serializers.ModelSerializer):
             'stock': {'min_value': 0}
         }
 
-    def validate(self, data):
-        tenant = self.context['request'].tenant
-        if data.get('category') and data['category'].tenant != tenant:
-            raise serializers.ValidationError("La catégorie n'appartient pas à ce tenant.")
-        return data
     
 class CartItemSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
@@ -136,9 +119,6 @@ class OrderSerializer(serializers.ModelSerializer):
         request = self.context['request']
         cart = validated_data['cart']
 
-        # Vérifier que le panier appartient bien au tenant
-        if cart.tenant != request.tenant:
-            raise serializers.ValidationError("Le panier n'appartient pas à ce tenant.")
 
         order = Order.objects.create(**validated_data)
         return order
@@ -156,9 +136,3 @@ class PaymentSerializer(serializers.ModelSerializer):
             'created_at'
         ]
         read_only_fields = ['payment_id', 'created_at']
-
-    def validate(self, data):
-        order = data['order']
-        if order.tenant != self.context['request'].tenant:
-            raise serializers.ValidationError("Commande non accessible dans ce contexte.")
-        return data

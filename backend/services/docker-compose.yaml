@@ -1,7 +1,10 @@
-services: 
+services:
+  base:
+    build: .
+
   product-service:
     build:
-      context: ../product
+      context: ./product
       dockerfile: Dockerfile
     container_name: product-service
     ports:
@@ -12,7 +15,7 @@ services:
   
   auth-service:
     build:
-      context: ../auth
+      context: ./auth
       dockerfile: Dockerfile
     container_name: auth-service
     ports:
@@ -20,6 +23,22 @@ services:
     environment:
       - SERVICE_PORT=8000
       - SERVICE_NAME=auth
+  
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672" 
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "1234"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq_data:
 
 networks:
     app_network:
