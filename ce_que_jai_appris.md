@@ -1,0 +1,2 @@
+# 13-NOV-2025
+- les classes par defaut dans l'authetification cherchent un model user. Dans le cadre d'une architecture microservice où les models user sont dans une seule base de données, cela pose problème. Du coup il faut écrire soi-même ses middleware pour récupérer le token, le vérifier et extraire l'id du user. Pareil il faudra ecrire soit même le code des classe comme IsAthenticated etc. 
