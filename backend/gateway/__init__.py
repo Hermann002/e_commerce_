@@ -23,7 +23,7 @@ def create_app(test_config=None):
     app.register_blueprint(app_module.bp)
 
     # a simple page that says hello
-    @app.route('/hello')
+    @app.route('/')
     def hello():
         return 'Hello, World!'
     
@@ -32,7 +32,7 @@ def create_app(test_config=None):
         '/api/products',
     ]
     UNPROTECTED_ROUTES = [
-        '/api/products/products',
+        '/api/products/products', '/api/products/categories',
     ]
 
     SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS']

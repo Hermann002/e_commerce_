@@ -2,7 +2,8 @@ from rest_framework import generics, viewsets, filters, status
 from .models import Product, Category, Cart, CartItem, Order, OrderItem, Payment
 from .serializers import ProductSerializer, CategorySerializer, CartSerializer, CartItemSerializer, OrderSerializer, OrderItemSerializer, PaymentSerializer
 
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
+from .permissions import IsAuthenticatedCustom
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
@@ -17,9 +18,19 @@ from drf_spectacular.types import OpenApiTypes
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     lookup_field = 'category'
+
+    def get_permissions(self):
+        """
+        Define permission classes based on the action.
+        List and retrieve are public, other actions require authentication.
+        """
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAuthenticatedCustom]
+        return [permission() for permission in permission_classes]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -80,7 +91,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [AllowAny]
         else:
-            permission_classes = [IsAuthenticated]
+            permission_classes = [IsAuthenticatedCustom]
         return [permission() for permission in permission_classes]
 
 
@@ -90,11 +101,11 @@ class CartViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """Récupère le panier de l'utilisateur ou de la session"""
-        user_id = request.user_id  # extrait du JWT
+        user_id = request["jwt_payload"].get('user_id')  # extrait du JWT
         session_key = request.session.session_key
 
         cart, created = Cart.objects.get_or_create(
-            user_id=user_id,
+            user=user_id,
             session_key=session_key,
         )
         serializer = CartSerializer(cart)
@@ -102,11 +113,11 @@ class CartViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def add_item(self, request):
-        user_id = request.user_id
+        user_id = request["jwt_payload"].get('user_id')
         session_key = request.session.session_key
 
         cart, _ = Cart.objects.get_or_create(
-            user_id=user_id,
+            user=user_id,
             session_key=session_key,
         )
 
@@ -142,11 +153,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     lookup_field = 'order_id'
 
     def get_queryset(self):
-        user_id = self.request.user_id
-        return Order.objects.filter(user_id=user_id)
+        user_id = self.request["jwt_payload"].get('user_id')
+        return Order.objects.filter(user=user_id)
 
     def perform_create(self, serializer):
-        serializer.save(user_id=self.request.user_id)
+        serializer.save(user=self.request["jwt_payload"].get('user_id'))
 
 @extend_schema(tags=['Payments'])
 class PaymentViewSet(viewsets.ModelViewSet):

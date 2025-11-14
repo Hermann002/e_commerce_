@@ -13,3 +13,4 @@ djangorestframework-oauth==1.0.0
 django-oauth-toolkit
 django-oauth-toolkit==3.0.1
 djangorestframework-simplejwt==5.5.1
+whitenoise==6.8.2

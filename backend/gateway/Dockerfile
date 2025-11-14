@@ -22,7 +22,7 @@ COPY --from=builder /install /usr/local
 ENV PATH=/root/.local/bin:$PATH
 
 # === STAGE 3 : Image finale avec les services web ===
-FROM gateway-base AS web
+FROM base AS web
 
 WORKDIR /app
 
@@ -30,4 +30,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "script.sh"]
+CMD ["flask", "--app", "../app", "run", "--host=0.0.0.0", "--port=8000"]

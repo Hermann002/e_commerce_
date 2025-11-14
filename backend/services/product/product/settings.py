@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'manage_products.middleware.JWTMiddleware',
 ]
 
 ROOT_URLCONF = 'product.urls'
@@ -115,10 +116,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'product.wsgi.application'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'rest_framework.authentication.SessionAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
+    # 'DEFAULT_AUTHENTICATION_CLASSES': [
+    #     # 'rest_framework.authentication.SessionAuthentication',
+    #     'rest_framework_simplejwt.authentication.JWTAuthentication',
+    # ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
@@ -140,10 +141,14 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": False,
 
     "ALGORITHM": "HS256",
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id',
 
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', 'ma_cle_secrete_très_longue_et_difficile_à_deviner_12345'),
     'VERIFYING_KEY': os.getenv('JWT_SECRET_KEY', 'ma_cle_secrete_très_longue_et_difficile_à_deviner_12345'),
     'AUTH_HEADER_TYPES': ('Bearer',),
+
+    'USER_AUTHENTICATION_RULE': lambda user: True,
 }
 
 
@@ -190,7 +195,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'auth.User' 
+# AUTH_USER_MODEL = 'auth.User' 
 
 
 # Internationalization

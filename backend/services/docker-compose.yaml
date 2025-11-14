@@ -12,6 +12,8 @@ services:
     environment:
       - SERVICE_PORT=8000
       - SERVICE_NAME=products
+    networks:
+      - app_network
   
   auth-service:
     build:
@@ -23,6 +25,8 @@ services:
     environment:
       - SERVICE_PORT=8000
       - SERVICE_NAME=auth
+    networks:
+      - app_network
   
   rabbitmq:
     image: rabbitmq:3.9-management
@@ -36,6 +40,8 @@ services:
       RABBITMQ_DEFAULT_PASS: "1234"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app_network
 
 volumes:
   rabbitmq_data:
